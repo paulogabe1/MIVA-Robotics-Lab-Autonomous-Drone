@@ -1,7 +1,8 @@
 import time
 import os
 import cv2
-from djitellopy import Tello
+# from djitellopy import Tello
+from djitellopySim import Tello
 
 # Import detection methods from src/obstacle.py
 from obstacle import (
@@ -14,7 +15,7 @@ from obstacle import (
 import logger
 
 # ==========================================
-# CONFIGURATION & HYPERPARAMETERS
+# CONFIG
 # ==========================================
 # Detection Mode: 'OPTION_A' (Mission Pad) or 'OPTION_B' (HSV Color)
 DETECTION_MODE = 'OPTION_B'
@@ -67,7 +68,7 @@ def obstacle_detection_check(drone, frame=None):
 
 
 # ==========================================
-# MAIN FLIGHT STATE MACHINE
+# MAIN FLIGHT
 # ==========================================
 def main():
     logger.init_logger()
