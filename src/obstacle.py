@@ -6,7 +6,7 @@ import numpy as np
 # ==========================================
 
 def init_pad_detection(drone):
-    """Enables SDK 2.0 mission pad scanning on the forward camera."""
+    """Enables scanning on the forward camera."""
     drone.enable_mission_pads()
     # 0 = Downward camera, 1 = Forward camera, 2 = Both
     drone.set_mission_pad_detection_direction(1)
@@ -14,7 +14,7 @@ def init_pad_detection(drone):
 
 def check_pad(drone, target_pad_id: int = 1) -> tuple[bool, int]:
     """
-    Option A: Uses the Tello EDU forward sensor to check for a tagged mission pad.
+    Option A: Checks for a tagged mission pad.
     Returns a tuple of (is_detected, pad_id).
     """
     detected_pad_id = drone.get_detected_pad_id()

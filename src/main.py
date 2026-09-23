@@ -17,12 +17,12 @@ import logger
 # CONFIGURATION & HYPERPARAMETERS
 # ==========================================
 # Detection Mode: 'OPTION_A' (Mission Pad) or 'OPTION_B' (HSV Color)
-DETECTION_MODE = 'OPTION_A'
+DETECTION_MODE = 'OPTION_B'
 MOVEMENT_MODE = 'STEPWISE'  # 'STEPWISE' or 'CONTINUOUS'
 
 # Mission Parameters
 STEP_DISTANCE_CM = 20      # Incremental forward step size (cm)
-MAX_DISTANCE_CM = 300      # Total distance cap (cm)
+MAX_DISTANCE_CM = 40      # Total distance cap (cm)
 TARGET_PAD_ID = 1          # Target Mission Pad ID for Option A
 
 FORWARD_SPEED = 30    # Forward speed in cm/s if using continuous movement (not step-wise)
@@ -48,6 +48,17 @@ def obstacle_detection_check(drone, frame=None):
     elif DETECTION_MODE == 'OPTION_B':
         is_detected, fill_ratio = check_color(frame, LOWER_HSV, UPPER_HSV, COLOR_COVERAGE_THRESHOLD)
         detection_value = f"Fill_{fill_ratio:.2%}"
+
+        # --- LIVE CAMERA FEED DISPLAY ---
+        if frame is not None:
+            # Add status text overlay onto the live frame
+            overlay_color = (0, 0, 255) if is_detected else (0, 255, 0)
+            status_text = f"OBSTACLE DETECTED ({detection_value})" if is_detected else f"CLEAR ({detection_value})"
+            cv2.putText(frame, status_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, overlay_color, 2)
+
+            # Display frame and process GUI window queue
+            cv2.imshow("Tello Camera Feed", frame)
+            cv2.waitKey(1)
 
     else:
         raise ValueError(f"Invalid DETECTION_MODE: {DETECTION_MODE}")
@@ -104,7 +115,7 @@ def main():
             state = "SEARCHING_FORWARD"
             logger.log_message("Starting step-wise forward scan", "[STATE]", state)
 
-            while total_traveled_cm < MAX_DISTANCE_CM:
+            while True:
                 obstacle_detected = False
                 detection_value = "Clear"
 
@@ -112,17 +123,18 @@ def main():
 
                 logger.log_telemetry(drone, state, obstacle_detected, detection_value)
 
-                # 2. State transition
-                if obstacle_detected:
-                    state = "OBSTACLE_DETECTED"
-                    logger.log_message(f"Obstacle Detected! Value: {detection_value}. Stopping drone.", "[ALERT]", state)
-                    break
+                if total_traveled_cm < MAX_DISTANCE_CM:
+                    # 2. State transition
+                    if obstacle_detected:
+                        state = "OBSTACLE_DETECTED"
+                        logger.log_message(f"Obstacle Detected! Value: {detection_value}. Stopping drone.", "[ALERT]", state)
+                        break
 
-                # 3. Step forward incrementally if path is clear
-                logger.log_message(f"Path clear. Stepping forward {STEP_DISTANCE_CM} cm (Total: {total_traveled_cm + STEP_DISTANCE_CM}/{MAX_DISTANCE_CM} cm)", "[INFO]", state)
-                drone.move_forward(STEP_DISTANCE_CM)
-                total_traveled_cm += STEP_DISTANCE_CM
-                time.sleep(0.5)  # Short stabilization pause
+                    # 3. Step forward incrementally if path is clear
+                    logger.log_message(f"Path clear. Stepping forward {STEP_DISTANCE_CM} cm (Total: {total_traveled_cm + STEP_DISTANCE_CM}/{MAX_DISTANCE_CM} cm)", "[INFO]", state)
+                    drone.move_forward(STEP_DISTANCE_CM)
+                    total_traveled_cm += STEP_DISTANCE_CM
+                    time.sleep(0.5)  # Short stabilization pause
 
         elif MOVEMENT_MODE == 'CONTINUOUS':
             logger.log_message(f"Continuous forward movement enabled. Speed: {FORWARD_SPEED} cm/s", "[INFO]")
@@ -164,8 +176,8 @@ def main():
         state = "EMERGENCY_INTERRUPT"
 
     except Exception as e:
-        print(f"\n[ERROR] Unexpected error occurred: {e}")
         state = "ERROR_LAND"
+        logger.log_message(f"Unexpected error occurred: {e}", "[ERROR]", state)
 
     finally:
         # land and cleanup regardless of how the flight ended
@@ -175,7 +187,7 @@ def main():
         try:
             drone.land()
         except Exception as e:
-            print(f"[ERROR] Landing command failed: {e}")
+            logger.log_message(f"Landing command failed: {e}", "[ERROR]")
 
         if DETECTION_MODE == 'OPTION_A':
             cleanup_pad_detection(drone)
