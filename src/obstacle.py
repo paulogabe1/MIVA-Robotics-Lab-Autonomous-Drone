@@ -12,17 +12,17 @@ def init_pad_detection(drone):
     drone.set_mission_pad_detection_direction(1)
     print("[OBSTACLE] Forward Mission Pad detection initialized.")
 
-def check_pad(drone, target_pad_id: int = 1) -> bool:
+def check_pad(drone, target_pad_id: int = 1) -> tuple[bool, int]:
     """
     Option A: Uses the Tello EDU forward sensor to check for a tagged mission pad.
-    Returns True if the target pad ID is detected.
+    Returns a tuple of (is_detected, pad_id).
     """
     detected_pad_id = drone.get_detected_pad_id()
     result = detected_pad_id == target_pad_id
     if result:
         print(f"Drone is on the target pad (ID: {target_pad_id}).")
  
-    return result
+    return result, detected_pad_id
 
 def cleanup_pad_detection(drone):
     """Disables mission pad scanning on mission wrap-up."""
@@ -36,13 +36,13 @@ def cleanup_pad_detection(drone):
 # OPTION B: OpenCV Color Mask Detection
 # ==========================================
 
-def check_color(frame, lower_hsv: list, upper_hsv: list, area_threshold: float = 0.15) -> bool:
+def check_color(frame, lower_hsv: list, upper_hsv: list, area_threshold: float = 0.15) -> tuple[bool, float]:
     """
     Option B: Analyzes the camera video frame with OpenCV to detect if a bright
     color card fills more than a set percentage of the view.
     """
     if frame is None or frame.size == 0:
-        return False
+        return False, 0.0
 
     # Convert the video frame from BGR to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -55,8 +55,9 @@ def check_color(frame, lower_hsv: list, upper_hsv: list, area_threshold: float =
     total_pixels = frame.shape[0] * frame.shape[1]
     coverage_ratio = color_pixels / float(total_pixels)
 
-    if coverage_ratio >= area_threshold:
+    is_detected = coverage_ratio >= area_threshold
+    if is_detected:
         print(f"[OBSTACLE] Color target detected! Covers {coverage_ratio:.1%} of frame.")
-        return True
-        
-    return False
+        return True, coverage_ratio
+
+    return is_detected, coverage_ratio
