@@ -19,14 +19,14 @@ import logger
 # ==========================================
 # Detection Mode: 'OPTION_A' (Mission Pad) or 'OPTION_B' (HSV Color)
 DETECTION_MODE = 'OPTION_B'
-MOVEMENT_MODE = 'STEPWISE'  # 'STEPWISE' or 'CONTINUOUS'
+MOVEMENT_MODE = 'CONTINUOUS'  # 'STEPWISE' or 'CONTINUOUS'
 
 # Mission Parameters
-STEP_DISTANCE_CM = 20      # Incremental forward step size (cm)
-MAX_DISTANCE_CM = 40      # Total distance cap (cm)
+STEP_DISTANCE_CM = 200      # Incremental forward step size (cm)
+MAX_DISTANCE_CM = 4000      # Total distance cap (cm)
 TARGET_PAD_ID = 1          # Target Mission Pad ID for Option A
 
-FORWARD_SPEED = 30    # Forward speed in cm/s if using continuous movement (not step-wise)
+FORWARD_SPEED = 300    # Forward speed in cm/s if using continuous movement (not step-wise)
 
 # Option B HSV Ranges (Default: Red Object)
 LOWER_HSV = [0, 120, 70]
@@ -145,10 +145,8 @@ def main():
             state = "SEARCHING_CONTINUOUS"
             logger.log_message("Moving forward continuously until obstacle detected...", "[STATE]", state)
 
-            # Start moving forward smoothly
-            drone.send_rc_control(0, FORWARD_SPEED, 0, 0)
-
             while True:
+                drone.send_rc_control(0, FORWARD_SPEED, 0, 0)
                 obstacle_detected = False
                 detection_value = "Clear"
 
