@@ -14,7 +14,7 @@ from obstacle import (
 
 import logger
 
-import main_follow as f
+import follow as f
 
 # ==========================================
 # CONFIG
