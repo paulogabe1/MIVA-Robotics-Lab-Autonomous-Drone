@@ -14,23 +14,27 @@ from obstacle import (
 
 import logger
 
+import main_follow as f
+
 # ==========================================
 # CONFIG
 # ==========================================
 # Detection Mode: 'OPTION_A' (Mission Pad) or 'OPTION_B' (HSV Color)
 DETECTION_MODE = 'OPTION_B'
-MOVEMENT_MODE = 'CONTINUOUS'  # 'STEPWISE' or 'CONTINUOUS'
+MOVEMENT_MODE = 'FOLLOW'  # 'STEPWISE' or 'CONTINUOUS' or 'FOLLOW'
 
 # Mission Parameters
 STEP_DISTANCE_CM = 200      # Incremental forward step size (cm)
-MAX_DISTANCE_CM = 4000      # Total distance cap (cm)
+MAX_DISTANCE_CM = 1000      # Total distance cap (cm)
 TARGET_PAD_ID = 1          # Target Mission Pad ID for Option A
 
-FORWARD_SPEED = 300    # Forward speed in cm/s if using continuous movement (not step-wise)
+FORWARD_SPEED = 30    # Forward speed in cm/s if using continuous movement (not step-wise)
 
 # Option B HSV Ranges (Default: Red Object)
 LOWER_HSV = [0, 120, 70]
 UPPER_HSV = [10, 255, 255]
+LOWER_HSV = [0, 0, 0]
+UPPER_HSV = [255, 255, 50]
 COLOR_COVERAGE_THRESHOLD = 0.15  # 15% frame coverage triggers obstacle
 
 # Logging Setup
@@ -71,6 +75,10 @@ def obstacle_detection_check(drone, frame=None):
 # MAIN FLIGHT
 # ==========================================
 def main():
+    if MOVEMENT_MODE == "FOLLOW":
+        f.main()
+        return
+    
     logger.init_logger()
     
     drone = Tello()
@@ -109,7 +117,7 @@ def main():
         logger.log_telemetry(drone, state, False, "N/A")
 
         if MOVEMENT_MODE == 'STEPWISE':
-            logger.log_message("Step-wise forward movement enabled. Step size: {STEP_DISTANCE_CM} cm", "[INFO]")
+            logger.log_message(f"Step-wise forward movement enabled. Step size: {STEP_DISTANCE_CM} cm", "[INFO]")
             # ----------------------------------
             # STATE: SEARCHING_FORWARD
             # ----------------------------------
@@ -136,6 +144,10 @@ def main():
                     drone.move_forward(STEP_DISTANCE_CM)
                     total_traveled_cm += STEP_DISTANCE_CM
                     time.sleep(0.5)  # Short stabilization pause
+                else:
+                    state = "MISSION_COMPLETE"
+                    logger.log_message(f"Reached maximum distance ({MAX_DISTANCE_CM} cm) without obstacle encounter.", "[STATE]", state)
+                    break
 
         elif MOVEMENT_MODE == 'CONTINUOUS':
             logger.log_message(f"Continuous forward movement enabled. Speed: {FORWARD_SPEED} cm/s", "[INFO]")
@@ -168,11 +180,11 @@ def main():
 
         if state != "OBSTACLE_DETECTED":
             state = "MISSION_COMPLETE"
-            logger.log_message(f"Reached maximum distance without obstacle encounter.", "[STATE]", state)
+            logger.log_message(f"Reached maximum distance ({MAX_DISTANCE_CM} cm) without obstacle encounter.", "[STATE]", state)
 
     except KeyboardInterrupt:
-        logger.log_message("Manual interrupt received! Landing immediately...", "[EMERGENCY]")
         state = "EMERGENCY_INTERRUPT"
+        logger.log_message("Manual interrupt received! Landing immediately...", "[EMERGENCY]", state)
 
     except Exception as e:
         state = "ERROR_LAND"
@@ -187,6 +199,8 @@ def main():
             drone.land()
         except Exception as e:
             logger.log_message(f"Landing command failed: {e}", "[ERROR]")
+
+        time.sleep(2)
 
         if DETECTION_MODE == 'OPTION_A':
             cleanup_pad_detection(drone)
