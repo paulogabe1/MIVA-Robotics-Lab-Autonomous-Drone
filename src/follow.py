@@ -15,7 +15,7 @@ TARGET_AREA = 0.15       # blob size to hold (bigger = drone stays closer)
 DEADBAND_X = 0.10        # horizontal error ignored inside this
 DEADBAND_AREA = 0.03     # size error ignored inside this
 
-MAX_SPEED = 40           # the only speed knob (rc units, max 100)
+MAX_SPEED = 60           # the only speed knob (rc units, max 100)
 FULL_SPEED_X = 0.5       # horizontal error at which yaw reaches MAX_SPEED
 FULL_SPEED_AREA = 0.10   # size error at which forward reaches MAX_SPEED
 
