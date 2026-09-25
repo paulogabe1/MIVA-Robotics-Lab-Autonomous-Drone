@@ -4,6 +4,7 @@ import numpy as np
 # from djitellopy import Tello
 from djitellopySim import Tello
 import video_sim as vs
+import logger
 
 # Dark object range (OpenCV hue is 0-179, low Value = dark)
 LOWER_DARK = np.array([0, 0, 0])
@@ -15,11 +16,13 @@ TARGET_AREA = 0.15       # blob size to hold (bigger = drone stays closer)
 DEADBAND_X = 0.10        # horizontal error ignored inside this
 DEADBAND_AREA = 0.03     # size error ignored inside this
 
-MAX_SPEED = 60           # the only speed knob (rc units, max 100)
-FULL_SPEED_X = 0.5       # horizontal error at which yaw reaches MAX_SPEED
+MAX_SPEED = 100           # the only speed knob (rc units, max 100)
+FULL_SPEED_X = 1       # horizontal error at which yaw reaches MAX_SPEED
 FULL_SPEED_AREA = 0.10   # size error at which forward reaches MAX_SPEED
 
 IDLE_TIMEOUT_S = 5       # land after this many seconds without movement
+
+ADVANCED_SIM = False  # Not fully implemented yet
 
 def find_dark_object(frame):
     """Returns (cx, area_ratio, bbox) of the largest dark blob, or None."""
@@ -60,30 +63,57 @@ def follow_command(cx, area):
     return forward, yaw
 
 def main():
-    drone = Tello()
-    drone.is_windy = False
-    drone.connect()
-    print(f"Battery: {drone.get_battery()}%")
-
-    drone.streamon()
-    reader = drone.get_frame_read()
-    reader = vs.ProjectedTargetReader(reader, drone)
-    time.sleep(2)  # warm up video feed
-
-    drone.takeoff()
-    last_motion = time.time()
+    logger.init_logger()
+    drone = None
+    state = "INIT"
+    reader = None
 
     try:
+        logger.log_message("Connecting to Tello EDU...", "[STATE]", state)
+        if ADVANCED_SIM:
+            Tello.CONTROL_UDP_PORT = 9000
+            drone = Tello(host="127.0.0.1")
+            drone.address = ("127.0.0.1", 8889)
+        else:
+            drone = Tello()
+
+        drone.is_windy = False
+        drone.connect()
+
+        battery = drone.get_battery()
+        logger.log_message(f"Battery Level: {battery}%", "[STATE]", state)
+        if battery < 20:
+            raise RuntimeError("Battery too low for safe flight (< 20%). Aborting.")
+
+        drone.streamon()
+        reader = drone.get_frame_read()
+        reader = vs.ProjectedTargetReader(reader, drone)
+        time.sleep(2)  # warm up video feed
+        logger.log_telemetry(drone, state, False, "N/A")
+
+        state = "TAKEOFF"
+        logger.log_message("Initiating takeoff...", "[STATE]", state)
+        drone.takeoff()
+        time.sleep(1)
+        logger.log_telemetry(drone, state, False, "N/A")
+
+        state = "FOLLOWING"
+        logger.log_message("Following target until movement is idle...", "[STATE]", state)
+        last_motion = time.time()
+
         while True:
             frame = reader.frame
             target = find_dark_object(frame)
 
             if target is None:
                 forward, yaw = 0, 0          # nothing to follow, hover
+                detection_value = "No_Target"
             else:
                 forward, yaw = follow_command(target[0], target[1])
+                detection_value = f"Center_{target[0]:.2f}_Area_{target[1]:.2%}"
 
             drone.send_rc_control(0, forward, 0, yaw)
+            logger.log_telemetry(drone, state, target is not None, detection_value)
 
             # Any correction means the object moved (or we are still closing in)
             now = time.time()
@@ -97,23 +127,43 @@ def main():
                     x, y, bw, bh = target[2]
                     cv2.rectangle(view, (x, y), (x + bw, y + bh), (0, 255, 0), 2)
                 cv2.putText(view, f"Idle: {idle:.1f}/{IDLE_TIMEOUT_S}s", (20, 40),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
                 cv2.imshow("Tello Camera Feed", view)
                 cv2.waitKey(1)
 
             if idle >= IDLE_TIMEOUT_S:
-                print("No movement for 5s. Landing.")
+                state = "MISSION_COMPLETE"
+                logger.log_message(
+                    f"No movement for {IDLE_TIMEOUT_S:g}s. Landing safely.",
+                    "[STATE]",
+                    state,
+                )
                 break
 
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        print("Interrupted. Landing.")
+        state = "EMERGENCY_INTERRUPT"
+        logger.log_message("Manual interrupt received! Landing immediately!", "[EMERGENCY]", state)
+
+    except Exception as e:
+        state = "ERROR_LAND"
+        logger.log_message(f"Unexpected error occurred: {e}", "[ERROR]", state)
 
     finally:
-        drone.send_rc_control(0, 0, 0, 0)
-        drone.land()
-        drone.streamoff()
+        logger.log_message("Descending safely...", "[STATE]", "LANDING")
+        if drone is not None:
+            logger.log_telemetry(drone, "LANDING", False, "Finalizing")
+            try:
+                drone.send_rc_control(0, 0, 0, 0)
+                drone.land()
+            except Exception as e:
+                logger.log_message(f"Landing command failed: {e}", "[ERROR]", state)
+            try:
+                drone.streamoff()
+            except Exception:
+                pass
+        logger.log_message("[FINISHED] Flight session concluded.", "[INFO]", state)
         cv2.destroyAllWindows()
 
 

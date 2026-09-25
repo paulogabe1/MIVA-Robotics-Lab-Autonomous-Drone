@@ -37,8 +37,8 @@ class ProjectedTargetReader:
     """Fake camera plus pygame marker for a moving dark ball, both driven by the
     sim drone's true position and heading."""
 
-    def __init__(self, original_reader, drone, start_distance=300, speed=50,
-                 sway=300, move_s=20, radius_cm=50, focal_px=230):
+    def __init__(self, original_reader, drone, start_distance=300, speed=100,
+                 sway=500, move_s=40, radius_cm=50, focal_px=230):
         self.original_reader = original_reader
         self.drone = drone
         self.radius_cm = radius_cm

@@ -1,8 +1,0 @@
-Timestamp,State,Battery,Height_cm,Pitch,Roll,Yaw,Obstacle_Detected,Detection_Value
-2026-09-24 19:57:51,[STATE] INIT: Connecting to Tello EDU...,INIT
-2026-09-24 19:57:51,[STATE] INIT: Battery Level: 100%,INIT
-2026-09-24 19:57:53,,INIT,100,0,0,0,0,False,N/A
-2026-09-24 19:57:54,,TAKEOFF,100,0,0,0,0,False,N/A
-2026-09-24 19:57:54,[STATE] MISSION_COMPLETE: Reached maximum distance (1000 cm) without obstacle encounter.,MISSION_COMPLETE
-2026-09-24 19:57:54,,MISSION_COMPLETE,100,0,0,0,0,False,Finalizing
-2026-09-24 19:57:56,[INFO] MISSION_COMPLETE: [FINISHED] Flight session concluded.,MISSION_COMPLETE

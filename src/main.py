@@ -1,8 +1,8 @@
 import time
 import os
 import cv2
-# from djitellopy import Tello
-from djitellopySim import Tello
+from djitellopy import Tello
+# from djitellopySim import Tello
 
 # Import detection methods from src/obstacle.py
 from obstacle import (
@@ -33,8 +33,7 @@ FORWARD_SPEED = 30    # Forward speed in cm/s if using continuous movement (not 
 # Option B HSV Ranges (Default: Red Object)
 LOWER_HSV = [0, 120, 70]
 UPPER_HSV = [10, 255, 255]
-LOWER_HSV = [0, 0, 0]
-UPPER_HSV = [255, 255, 50]
+
 COLOR_COVERAGE_THRESHOLD = 0.15  # 15% frame coverage triggers obstacle
 
 # Logging Setup
@@ -111,7 +110,7 @@ def main():
         # STATE: TAKEOFF
         # ----------------------------------
         state = "TAKEOFF"
-        print(f"[STATE] {state}: Initiating takeoff...")
+        logger.log_message("Initiating takeoff...", "[STATE]", state)
         drone.takeoff()
         time.sleep(1)
         logger.log_telemetry(drone, state, False, "N/A")
